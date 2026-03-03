@@ -17,7 +17,9 @@ const Navbar = () => {
       className="fixed top-0 left-0 right-0 z-50 border-b border-border/30 bg-background/60 backdrop-blur-2xl"
     >
       <div className="container mx-auto flex items-center justify-between px-6 py-4">
-        <img src={logo} alt="QikMove" className="h-7" />
+        <a href="https://qikmove.app/" target="_blank" rel="noopener noreferrer">
+    <img src={logo} alt="QikMove" className="h-7 cursor-pointer" />
+  </a>
 
         <div className="hidden md:flex items-center gap-1">
           {links.map((l) => (
