@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
-import logo from "@/assets/qikmove-logo.png";
+// import logo from "@/assets/qikmove-logo.png";
+import logo from "@/assets/Picture2.png"
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);

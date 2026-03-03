@@ -53,11 +53,11 @@ const Hero = () => {
               transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="text-5xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl lg:text-[5rem]"
             >
-              Move it.
+              Move it,
               <br />
-              <span className="text-gradient-neon">Quick.</span>
+              <span className="text-gradient-neon">Like you</span>
               <br />
-              <span className="text-gradient-primary">No cap.</span>
+              <span className="text-gradient-primary">Mean it.</span>
             </motion.h1>
 
             <motion.p
