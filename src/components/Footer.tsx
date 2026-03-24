@@ -8,9 +8,14 @@ const Footer = () => {
           <div className="flex items-center gap-3">
             {/* <img src={logo} alt="QikMove" className="h-6 brightness-0 invert" /> */}
           </div>
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} QikMove. All rights reserved.
-          </p>
+          <div className="text-center sm:text-left">
+            <p className="text-xs text-muted-foreground">
+              © {new Date().getFullYear()} QikMove. All rights reserved.
+            </p>
+            <p className="text-xs text-muted-foreground/60 mt-1">
+              143 Jedidiah Estate Centenary, Enugu, Enugu State, Nigeria
+            </p>
+          </div>
           <div className="flex gap-6">
             {/* {["Privacy", "Terms", "Support"].map((l) => (
               <a key={l} href="#" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
