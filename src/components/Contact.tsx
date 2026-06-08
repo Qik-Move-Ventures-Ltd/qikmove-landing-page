@@ -2,18 +2,32 @@ import { useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Send, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Contact = () => {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
+    if (!email) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("join-waitlist", {
+        body: { email },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
       setSubmitted(true);
       setEmail("");
+    } catch (err: any) {
+      toast.error(err?.message || "Something went wrong. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -71,10 +85,11 @@ const Contact = () => {
                 />
                 <button
                   type="submit"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-7 py-4 text-sm font-bold text-primary-foreground transition-all hover:shadow-glow hover:scale-105 active:scale-95"
+                  disabled={loading}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-7 py-4 text-sm font-bold text-primary-foreground transition-all hover:shadow-glow hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   <Send className="h-4 w-4" />
-                  I'm in
+                  {loading ? "Joining..." : "I'm in"}
                 </button>
               </form>
             )}
