@@ -1,5 +1,11 @@
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+// @deno-types="npm:mongodb@6.10.0/mongodb.d.ts"
 import { MongoClient } from 'npm:mongodb@6.10.0';
+
+const corsHeaders: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
 
 const MONGODB_URI = Deno.env.get('MONGODB_URI')!;
 const MONGODB_DB_NAME = Deno.env.get('MONGODB_DB_NAME') || 'qikmove';
@@ -95,20 +101,33 @@ Deno.serve(async (req) => {
     await coll.createIndex({ email: 1 }, { unique: true });
 
     const now = new Date();
+
+    // FIX: $setOnInsert now includes welcomeEmailStatus: 'pending' so the
+    // status field is always present on a brand-new document. This removes
+    // the need for { $exists: false } in the claim filter below, which was
+    // unreliable on the same write cycle that created the document.
     await coll.updateOne(
       { email: cleaned },
-      { $setOnInsert: { email: cleaned, createdAt: now, source: 'landing' } },
+      {
+        $setOnInsert: {
+          email: cleaned,
+          createdAt: now,
+          source: 'landing',
+          welcomeEmailStatus: 'pending',
+        },
+      },
       { upsert: true },
     );
 
-    // Claim the welcome email before calling Brevo so repeat submits cannot queue duplicates.
+    // Claim the welcome email before calling Brevo so repeat submits cannot
+    // queue duplicates. Only 'pending' and 'failed' (or stale 'sending') are
+    // eligible — a document with status 'sent' will never match this filter.
     const staleSend = new Date(now.getTime() - 10 * 60 * 1000);
     const claim = await coll.updateOne(
       {
         email: cleaned,
         welcomeSentAt: { $exists: false },
         $or: [
-          { welcomeEmailStatus: { $exists: false } },
           { welcomeEmailStatus: 'pending' },
           { welcomeEmailStatus: 'failed' },
           { welcomeEmailStatus: 'sending', welcomeEmailStartedAt: { $lt: staleSend } },
