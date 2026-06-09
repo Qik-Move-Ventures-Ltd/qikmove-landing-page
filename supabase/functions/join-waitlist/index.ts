@@ -94,29 +94,61 @@ Deno.serve(async (req) => {
     const coll = db.collection('waitlist');
     await coll.createIndex({ email: 1 }, { unique: true });
 
-    // Atomically check-and-insert so we only email truly-new signups
-    const existing = await coll.findOne({ email: cleaned }, { projection: { _id: 1, welcomeSentAt: 1 } });
-    const isNew = !existing;
-    if (isNew) {
-      try {
-        await coll.insertOne({ email: cleaned, createdAt: new Date(), source: 'landing' });
-      } catch (e: any) {
-        if (e?.code !== 11000) throw e; // race: another request beat us
-      }
-    }
+    const now = new Date();
+    await coll.updateOne(
+      { email: cleaned },
+      { $setOnInsert: { email: cleaned, createdAt: now, source: 'landing' } },
+      { upsert: true },
+    );
 
-    // Send welcome email if we haven't already for this address
-    const alreadySent = !!existing?.welcomeSentAt;
-    if (!alreadySent) {
+    // Claim the welcome email before calling Brevo so repeat submits cannot queue duplicates.
+    const staleSend = new Date(now.getTime() - 10 * 60 * 1000);
+    const claim = await coll.updateOne(
+      {
+        email: cleaned,
+        welcomeSentAt: { $exists: false },
+        $or: [
+          { welcomeEmailStatus: { $exists: false } },
+          { welcomeEmailStatus: 'pending' },
+          { welcomeEmailStatus: 'failed' },
+          { welcomeEmailStatus: 'sending', welcomeEmailStartedAt: { $lt: staleSend } },
+        ],
+      },
+      {
+        $set: {
+          welcomeEmailStatus: 'sending',
+          welcomeEmailStartedAt: now,
+          updatedAt: now,
+        },
+      },
+    );
+
+    if (claim.modifiedCount === 1) {
       try {
         await sendWelcomeEmail(cleaned);
-        await coll.updateOne({ email: cleaned }, { $set: { welcomeSentAt: new Date() } });
+        await coll.updateOne(
+          { email: cleaned },
+          {
+            $set: { welcomeSentAt: new Date(), welcomeEmailStatus: 'sent', updatedAt: new Date() },
+            $unset: { welcomeEmailError: '' },
+          },
+        );
         console.log('Welcome email sent to', cleaned);
-      } catch (e) {
+      } catch (e: any) {
+        await coll.updateOne(
+          { email: cleaned, welcomeEmailStatus: 'sending' },
+          {
+            $set: {
+              welcomeEmailStatus: 'failed',
+              welcomeEmailError: e?.message || 'Unknown email error',
+              updatedAt: new Date(),
+            },
+          },
+        );
         console.error('Welcome email error:', e);
       }
     } else {
-      console.log('Welcome email already sent previously to', cleaned);
+      console.log('Welcome email already sent or in progress for', cleaned);
     }
 
     return new Response(JSON.stringify({ ok: true }), {
