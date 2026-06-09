@@ -94,17 +94,29 @@ Deno.serve(async (req) => {
     const coll = db.collection('waitlist');
     await coll.createIndex({ email: 1 }, { unique: true });
 
-    try {
-      await coll.insertOne({ email: cleaned, createdAt: new Date(), source: 'landing' });
-    } catch (e: any) {
-      if (e?.code !== 11000) throw e; // ignore duplicate
+    // Atomically check-and-insert so we only email truly-new signups
+    const existing = await coll.findOne({ email: cleaned }, { projection: { _id: 1, welcomeSentAt: 1 } });
+    const isNew = !existing;
+    if (isNew) {
+      try {
+        await coll.insertOne({ email: cleaned, createdAt: new Date(), source: 'landing' });
+      } catch (e: any) {
+        if (e?.code !== 11000) throw e; // race: another request beat us
+      }
     }
 
-    try {
-      await sendWelcomeEmail(cleaned);
-    } catch (e) {
-      // Email failure shouldn't block signup
-      console.error('Welcome email error:', e);
+    // Send welcome email if we haven't already for this address
+    const alreadySent = !!existing?.welcomeSentAt;
+    if (!alreadySent) {
+      try {
+        await sendWelcomeEmail(cleaned);
+        await coll.updateOne({ email: cleaned }, { $set: { welcomeSentAt: new Date() } });
+        console.log('Welcome email sent to', cleaned);
+      } catch (e) {
+        console.error('Welcome email error:', e);
+      }
+    } else {
+      console.log('Welcome email already sent previously to', cleaned);
     }
 
     return new Response(JSON.stringify({ ok: true }), {
