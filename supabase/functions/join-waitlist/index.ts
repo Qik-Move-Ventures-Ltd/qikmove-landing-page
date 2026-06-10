@@ -1,5 +1,6 @@
 // @deno-types="npm:mongodb@6.10.0/mongodb.d.ts"
 import { MongoClient } from 'npm:mongodb@6.10.0';
+import { SMTPClient } from 'npm:emailjs@4.0.3';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -9,10 +10,20 @@ const corsHeaders: Record<string, string> = {
 
 const MONGODB_URI = Deno.env.get('MONGODB_URI')!;
 const MONGODB_DB_NAME = Deno.env.get('MONGODB_DB_NAME') || 'qikmove';
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
-const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')!;
 
-const SENDER = { name: 'QikMove', email: 'hi.qikmove@11400805.brevosend.com' };
+// SMTP configuration (Brevo). Add these as Edge Function secrets before deploying:
+//   SMTP_HOST=smtp-relay.brevo.com
+//   SMTP_PORT=587
+//   SMTP_USER=<your brevo smtp login, e.g. adf665001@smtp-brevo.com>
+//   SMTP_PASSWORD=<your brevo smtp master password / key>
+//   SMTP_FROM_EMAIL=hi.qikmove@11400805.brevosend.com
+//   SMTP_FROM_NAME=QikMove
+const SMTP_HOST = Deno.env.get('SMTP_HOST') || 'smtp-relay.brevo.com';
+const SMTP_PORT = Number(Deno.env.get('SMTP_PORT') || '587');
+const SMTP_USER = Deno.env.get('SMTP_USER') || '';
+const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD') || '';
+const SMTP_FROM_EMAIL = Deno.env.get('SMTP_FROM_EMAIL') || 'hi.qikmove@11400805.brevosend.com';
+const SMTP_FROM_NAME = Deno.env.get('SMTP_FROM_NAME') || 'QikMove';
 
 let cachedClient: MongoClient | null = null;
 async function getDb() {
@@ -63,25 +74,27 @@ const welcomeHtml = (email: string) => `
 </body></html>`;
 
 async function sendWelcomeEmail(email: string) {
-  const res = await fetch('https://connector-gateway.lovable.dev/brevo/smtp/email', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'X-Connection-Api-Key': BREVO_API_KEY,
-    },
-    body: JSON.stringify({
-      sender: SENDER,
-      to: [{ email }],
-      subject: "You're in 🚀 Welcome to QikMove",
-      htmlContent: welcomeHtml(email),
-    }),
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    console.error('Brevo send failed', res.status, txt);
-    throw new Error(`Brevo ${res.status}: ${txt}`);
+  if (!SMTP_USER || !SMTP_PASSWORD) {
+    throw new Error('SMTP credentials are not configured (SMTP_USER / SMTP_PASSWORD)');
   }
+
+  const client = new SMTPClient({
+    user: SMTP_USER,
+    password: SMTP_PASSWORD,
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    tls: SMTP_PORT === 587, // STARTTLS on 587
+  });
+
+  const html = welcomeHtml(email);
+
+  await client.sendAsync({
+    from: `${SMTP_FROM_NAME} <${SMTP_FROM_EMAIL}>`,
+    to: email,
+    subject: "You're in 🚀 Welcome to QikMove",
+    text: "Welcome to QikMove! You're on the early-access list. We'll hit you up the moment we launch.",
+    attachment: [{ data: html, alternative: true }],
+  } as any);
 }
 
 Deno.serve(async (req) => {
