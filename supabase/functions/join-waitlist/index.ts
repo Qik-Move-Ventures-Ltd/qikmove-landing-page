@@ -102,11 +102,9 @@ Deno.serve(async (req) => {
 
     const now = new Date();
 
-    // FIX: $setOnInsert now includes welcomeEmailStatus: 'pending' so the
-    // status field is always present on a brand-new document. This removes
-    // the need for { $exists: false } in the claim filter below, which was
-    // unreliable on the same write cycle that created the document.
-    await coll.updateOne(
+    // Attempt to insert the document. upsertedCount === 1 means this is a
+    // brand-new address; === 0 means it already existed (repeat submit).
+    const upsertResult = await coll.updateOne(
       { email: cleaned },
       {
         $setOnInsert: {
@@ -119,43 +117,24 @@ Deno.serve(async (req) => {
       { upsert: true },
     );
 
-    // Claim the welcome email before calling Brevo so repeat submits cannot
-    // queue duplicates. Only 'pending' and 'failed' (or stale 'sending') are
-    // eligible — a document with status 'sent' will never match this filter.
-    const staleSend = new Date(now.getTime() - 10 * 60 * 1000);
-    const claim = await coll.updateOne(
-      {
-        email: cleaned,
-        welcomeSentAt: { $exists: false },
-        $or: [
-          { welcomeEmailStatus: 'pending' },
-          { welcomeEmailStatus: 'failed' },
-          { welcomeEmailStatus: 'sending', welcomeEmailStartedAt: { $lt: staleSend } },
-        ],
-      },
-      {
-        $set: {
-          welcomeEmailStatus: 'sending',
-          welcomeEmailStartedAt: now,
-          updatedAt: now,
-        },
-      },
-    );
-
-    if (claim.modifiedCount === 1) {
+    if (upsertResult.upsertedCount === 1) {
+      // Newly inserted — send the welcome email.
       try {
         await sendWelcomeEmail(cleaned);
         await coll.updateOne(
           { email: cleaned },
           {
-            $set: { welcomeSentAt: new Date(), welcomeEmailStatus: 'sent', updatedAt: new Date() },
-            $unset: { welcomeEmailError: '' },
+            $set: {
+              welcomeSentAt: new Date(),
+              welcomeEmailStatus: 'sent',
+              updatedAt: new Date(),
+            },
           },
         );
         console.log('Welcome email sent to', cleaned);
       } catch (e: any) {
         await coll.updateOne(
-          { email: cleaned, welcomeEmailStatus: 'sending' },
+          { email: cleaned },
           {
             $set: {
               welcomeEmailStatus: 'failed',
@@ -164,10 +143,11 @@ Deno.serve(async (req) => {
             },
           },
         );
-        console.error('Welcome email error:', e);
+        console.error('Welcome email error for', cleaned, e);
       }
     } else {
-      console.log('Welcome email already sent or in progress for', cleaned);
+      // Address already existed — do not send a duplicate email.
+      console.log('Repeat submit, skipping welcome email for', cleaned);
     }
 
     return new Response(JSON.stringify({ ok: true }), {
