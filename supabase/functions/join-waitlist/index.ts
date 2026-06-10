@@ -12,7 +12,7 @@ const MONGODB_DB_NAME = Deno.env.get('MONGODB_DB_NAME') || 'qikmove';
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
 const BREVO_API_KEY = Deno.env.get('BREVO_API_KEY')!;
 
-const SENDER = { name: 'QikMove', email: 'hi.qikmove@gmail.com' };
+const SENDER = { name: 'QikMove', email: 'hi.qikmove@11400805.brevosend.com' };
 
 let cachedClient: MongoClient | null = null;
 async function getDb() {
