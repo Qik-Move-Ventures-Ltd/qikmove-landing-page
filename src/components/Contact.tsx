@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Send, CheckCircle2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const Contact = () => {
@@ -17,11 +16,13 @@ const Contact = () => {
     if (!email) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("join-waitlist", {
-        body: { email },
+      const res = await fetch("/.netlify/functions/join-waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
       });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const data = await res.json();
+      if (!res.ok || data?.error) throw new Error(data?.error || "Something went wrong");
       setSubmitted(true);
       setEmail("");
     } catch (err: any) {
@@ -42,7 +43,6 @@ const Contact = () => {
           transition={{ duration: 0.7 }}
           className="mx-auto max-w-2xl rounded-3xl border border-primary/15 bg-card/80 backdrop-blur p-10 text-center shadow-glow sm:p-16 relative overflow-hidden"
         >
-          {/* Background orb */}
           <div className="absolute -top-20 -right-20 w-60 h-60 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -59,7 +59,7 @@ const Contact = () => {
               Don't sleep on this.
             </h2>
             <p className="text-muted-foreground mb-8 leading-relaxed max-w-md mx-auto">
-              Be the first to know when QikMove drops. Early users get exclusive perks. 
+              Be the first to know when QikMove drops. Early users get exclusive perks.
               No spam, we promise.
             </p>
 
