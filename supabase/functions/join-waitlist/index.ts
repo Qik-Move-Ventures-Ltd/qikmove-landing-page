@@ -51,11 +51,11 @@ const welcomeHtml = (email: string) => `
         </td></tr>
         <tr><td style="padding:8px 32px 32px;">
           <div style="padding:16px;background:#111116;border:1px solid #1f1f23;border-radius:14px;">
-            <p style="margin:0;font-size:13px;color:#9aff5a;font-weight:600;">📍 Built in Enugu. Made for Nigeria.</p>
+            <p style="margin:0;font-size:13px;color:#9aff5a;font-weight:600;">📍 Move it. Like it. Mean it</p>
             <p style="margin:6px 0 0;font-size:13px;color:#8a8a92;">We'll hit you up the second we launch. Stay tuned.</p>
           </div>
           <p style="margin:24px 0 0;font-size:12px;color:#6a6a72;">You're receiving this because <b style="color:#9a9aa2;">${email}</b> joined the QikMove waitlist.</p>
-          <p style="margin:6px 0 0;font-size:12px;color:#6a6a72;">QikMove — 143 Jedidiah Estate Centenary, Enugu, Nigeria</p>
+          <p style="margin:6px 0 0;font-size:12px;color:#6a6a72;">QikMove — Nigeria</p>
         </td></tr>
       </table>
     </td></tr>
