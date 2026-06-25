@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import logo from "@/assets/qikmove-logo.png";
 
 const Footer = () => {
@@ -11,6 +12,12 @@ const Footer = () => {
           <p className="text-xs text-muted-foreground/60">
             143 Jedidiah Estate Centenary, Enugu, Enugu State, Nigeria
           </p>
+          <Link
+            to="/privacy"
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            Privacy Policy
+          </Link>
         </div>
       </div>
     </footer>
